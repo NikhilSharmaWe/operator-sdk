@@ -122,14 +122,6 @@ func (mh *Memcached) Run() {
 	_, err = mh.ctx.Run(cmd)
 	pkg.CheckError("Running go mod tidy", err)
 
-	log.Infof("creating the bundle")
-	err = mh.ctx.GenerateBundle()
-	pkg.CheckError("creating the bundle", err)
-
-	log.Infof("striping bundle annotations")
-	err = mh.ctx.StripBundleAnnotations()
-	pkg.CheckError("striping bundle annotations", err)
-
 	pkg.CheckError("formatting project", mh.ctx.Make("fmt"))
 
 	// Clean up built binaries, if any.
