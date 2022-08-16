@@ -13,9 +13,9 @@ please [migrate][migration-guide], or consult the [legacy docs][legacy-quickstar
 - Go through the [installation guide][install-guide].
 - Make sure your user is authorized with `cluster-admin` permissions.
 - An accessible image registry for various operator images (ex. [hub.docker.com](https://hub.docker.com/signup),
-[quay.io](https://quay.io/)) and be logged in to your command line environment.
+  [quay.io](https://quay.io/)) and be logged in to your command line environment.
   - `example.com` is used as the registry Docker Hub namespace in these examples.
-  Replace it with another value if using a different registry or namespace.
+    Replace it with another value if using a different registry or namespace.
   - [Authentication and certificates][image-reg-config] if the registry is private or uses a custom CA.
 
 ## Overview
@@ -52,7 +52,6 @@ To learn about the project directory structure, see [Kubebuilder project layout]
 The main program for the operator `main.go` initializes and runs the [Manager][manager_go_doc].
 
 See the [Kubebuilder entrypoint doc][kubebuilder_entrypoint_doc] for more details on how the manager registers the Scheme for the custom resource API definitions, and sets up and runs controllers and webhooks.
-
 
 The Manager can restrict the namespace that all controllers will watch for resources:
 
@@ -103,15 +102,30 @@ Define the API for the Memcached Custom Resource(CR) by modifying the Go type de
 ```Go
 // MemcachedSpec defines the desired state of Memcached
 type MemcachedSpec struct {
-	//+kubebuilder:validation:Minimum=0
-	// Size is the size of the memcached deployment
-	Size int32 `json:"size"`
+	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+	// Important: Run "make" to regenerate code after modifying this file
+
+	// Size defines the number of Memcached instances
+	// The following markers will use OpenAPI v3 schema to validate the value
+	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=3
+	// +kubebuilder:validation:ExclusiveMaximum=false
+	Size int32 `json:"size,omitempty"`
 }
 
 // MemcachedStatus defines the observed state of Memcached
 type MemcachedStatus struct {
-	// Nodes are the names of the memcached pods
-	Nodes []string `json:"nodes"`
+	// Represents the observations of a Memcached's current state.
+	// Memcached.status.conditions.type are: "Available", "Progressing", and "Degraded"
+	// Memcached.status.conditions.status are one of True, False, Unknown.
+	// Memcached.status.conditions.reason the value should be a CamelCase string and producers of specific
+	// condition types may define expected values and meanings for this field, and whether the values
+	// are considered a guaranteed API.
+	// Memcached.status.conditions.Message is a human readable message indicating details about the transition.
+	// For further information see: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
+
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 ```
 
@@ -188,7 +202,7 @@ The `NewControllerManagedBy()` provides a controller builder that allows various
 
 There are a number of other useful configurations that can be made when initializing a controller. For more details on these configurations consult the upstream [builder][builder_godocs] and [controller][controller_godocs] godocs.
 
-- Set the max number of concurrent Reconciles for the controller via the [`MaxConcurrentReconciles`][controller_options]  option. Defaults to 1.
+- Set the max number of concurrent Reconciles for the controller via the [`MaxConcurrentReconciles`][controller_options] option. Defaults to 1.
   ```Go
   func (r *MemcachedReconciler) SetupWithManager(mgr ctrl.Manager) error {
     return ctrl.NewControllerManagedBy(mgr).
@@ -242,7 +256,7 @@ The following are a few possible return options for a Reconciler:
 - Reconcile again after X time:
   ```go
    return ctrl.Result{RequeueAfter: nextRun.Sub(r.Now())}, nil
-   ```
+  ```
 
 For more details, check the Reconcile and its [Reconcile godoc][reconcile-godoc].
 
@@ -254,8 +268,9 @@ The controller needs certain [RBAC][rbac-k8s-doc] permissions to interact with t
 //+kubebuilder:rbac:groups=cache.example.com,resources=memcacheds,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=cache.example.com,resources=memcacheds/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=cache.example.com,resources=memcacheds/finalizers,verbs=update
+//+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;
+//+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 
 func (r *MemcachedReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
   ...
@@ -268,7 +283,7 @@ The `ClusterRole` manifest at `config/rbac/role.yaml` is generated from the abov
 make manifests
 ```
 
-NOTE: If you receive an error, please run the specified command in the error and re-run `make manifests`. 
+NOTE: If you receive an error, please run the specified command in the error and re-run `make manifests`.
 
 ## Configure the operator's image registry
 
@@ -296,7 +311,6 @@ build and push an operator image tagged as `example.com/memcached-operator:v0.0.
 make docker-build docker-push
 ```
 
-
 ## Run the Operator
 
 There are three ways to run the operator:
@@ -308,6 +322,14 @@ There are three ways to run the operator:
 ### 1. Run locally outside the cluster
 
 The following steps will show how to deploy the operator on the cluster. However, to run locally for development purposes and outside of a cluster use the target `make install run`.
+
+Note that by using this plugin the Operand image informed will be stored via an environment variable in the `config/manager/manager.yaml` manifest.
+
+Therefore, before run `make install run` you need to export any environment variable that you might have. Example:
+
+```sh
+export MEMCACHED_IMAGE="memcached:1.4.36-alpine"
+```
 
 ### 2. Run as a Deployment inside the cluster
 
@@ -351,7 +373,6 @@ operator-sdk run bundle <some-registry>/memcached-operator-bundle:v0.0.1
 ```
 
 Check out the [docs][tutorial-bundle] for a deep dive into `operator-sdk`'s OLM integration.
-
 
 ## Create a Memcached CR
 
@@ -440,24 +461,24 @@ make undeploy
 ## Next steps
 
 Next, check out the following:
+
 1. Validating and mutating [admission webhooks][create_a_webhook].
 1. Operator packaging and distribution with [OLM][olm-integration].
 1. The [advanced topics][advanced-topics] doc for more use cases and under-the-hood details.
 
-
-[legacy-quickstart-doc]:https://v0-19-x.sdk.operatorframework.io/docs/golang/legacy/quickstart/
-[migration-guide]:/docs/building-operators/golang/migration
-[install-guide]:/docs/building-operators/golang/installation
-[image-reg-config]:/docs/olm-integration/cli-overview#private-bundle-and-catalog-image-registries
+[legacy-quickstart-doc]: https://v0-19-x.sdk.operatorframework.io/docs/golang/legacy/quickstart/
+[migration-guide]: /docs/building-operators/golang/migration
+[install-guide]: /docs/building-operators/golang/installation
+[image-reg-config]: /docs/olm-integration/cli-overview#private-bundle-and-catalog-image-registries
 [enqueue_requests_from_map_func]: https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/handler#EnqueueRequestsFromMapFunc
 [event_handler_godocs]: https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/handler#hdr-EventHandlers
-[event_filtering]:/docs/building-operators/golang/references/event-filtering/
+[event_filtering]: /docs/building-operators/golang/references/event-filtering/
 [controller_options]: https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/controller#Options
 [controller_godocs]: https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/controller
-[operator_scope]:/docs/building-operators/golang/operator-scope/
-[kubebuilder_layout_doc]:https://book.kubebuilder.io/cronjob-tutorial/basic-project.html
+[operator_scope]: /docs/building-operators/golang/operator-scope/
+[kubebuilder_layout_doc]: https://book.kubebuilder.io/cronjob-tutorial/basic-project.html
 [go_mod_wiki]: https://github.com/golang/go/wiki/Modules
-[doc_client_api]:/docs/building-operators/golang/references/client/
+[doc_client_api]: /docs/building-operators/golang/references/client/
 [manager_go_doc]: https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/manager#Manager
 [request-go-doc]: https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/reconcile#Request
 [result_go_doc]: https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/reconcile#Result
@@ -478,14 +499,14 @@ Next, check out the following:
 [create_a_webhook]: /docs/building-operators/golang/webhook
 [status_marker]: https://book.kubebuilder.io/reference/generating-crd.html#status
 [status_subresource]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource
-[API-groups]:https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-groups
-[legacy_CLI]:https://v0-19-x.sdk.operatorframework.io/docs/cli/
+[api-groups]: https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-groups
+[legacy_cli]: https://v0-19-x.sdk.operatorframework.io/docs/cli/
 [role-based-access-control]: https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control#iam-rolebinding-bootstrap
 [multigroup-kubebuilder-doc]: https://book.kubebuilder.io/migration/multi-group.html
-[doc-bundle]:https://github.com/operator-framework/operator-registry/blob/v1.16.1/docs/design/operator-bundle.md#operator-bundle
-[tutorial-bundle]:/docs/olm-integration/tutorial-bundle
-[quickstart-bundle]:/docs/olm-integration/quickstart-bundle
-[doc-olm]:/docs/olm-integration/tutorial-bundle/#enabling-olm
+[doc-bundle]: https://github.com/operator-framework/operator-registry/blob/v1.16.1/docs/design/operator-bundle.md#operator-bundle
+[tutorial-bundle]: /docs/olm-integration/tutorial-bundle
+[quickstart-bundle]: /docs/olm-integration/quickstart-bundle
+[doc-olm]: /docs/olm-integration/tutorial-bundle/#enabling-olm
 [conditionals]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
 [kubernetes-extend-api]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/
 [reconcile-godoc]: https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/reconcile
