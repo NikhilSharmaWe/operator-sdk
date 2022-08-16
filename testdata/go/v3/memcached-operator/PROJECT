@@ -2,6 +2,14 @@ domain: example.com
 layout:
 - go.kubebuilder.io/v3
 plugins:
+  deploy-image.go.kubebuilder.io/v1-alpha:
+    resources:
+    - domain: example.com
+      group: cache
+      kind: Memcached
+      options:
+        image: memcached:1.4.36-alpine
+      version: v1alpha1
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: memcached-operator
