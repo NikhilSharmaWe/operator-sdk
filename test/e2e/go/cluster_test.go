@@ -18,7 +18,6 @@ package e2e_go_test
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -177,22 +176,6 @@ var _ = Describe("operator-sdk", func() {
 				return metricsOutput
 			}
 			Eventually(getCurlLogs, time.Minute, time.Second).Should(ContainSubstring("< HTTP/2 200"))
-
-			// The controller updates memcacheds' status.nodes with a list of pods it is replicated across
-			// on a successful reconcile.
-			By("validating that the created resource object gets reconciled in the controller")
-			var status string
-			getStatus := func() error {
-				status, err = tc.Kubectl.Get(true, "memcacheds", "memcached-sample", "-o", "jsonpath={.status.nodes}")
-				if err == nil && strings.TrimSpace(status) == "" {
-					err = errors.New("empty status, continue")
-				}
-				return err
-			}
-			Eventually(getStatus, 1*time.Minute, time.Second).Should(Succeed())
-			var nodes []string
-			Expect(json.Unmarshal([]byte(status), &nodes)).To(Succeed())
-			Expect(len(nodes)).To(BeNumerically(">", 0))
 
 			By("validating that pod(s) status.phase=Running")
 			var podsOutput string

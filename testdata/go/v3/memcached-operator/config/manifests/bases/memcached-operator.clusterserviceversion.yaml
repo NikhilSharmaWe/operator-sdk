@@ -19,14 +19,13 @@ spec:
         name: memcached-deployment
         version: v1
       specDescriptors:
-      - description: Size defines the number of Memcached instances
+      - description: 'Size defines the number of Memcached instances The following
+          markers will use OpenAPI v3 schema to validate the value More info: https://book.kubebuilder.io/reference/markers/crd-validation.html'
         displayName: Size
         path: size
       statusDescriptors:
-      - description: Nodes store the name of the pods which are running Memcached
-          instances
-        displayName: Nodes
-        path: nodes
+      - displayName: Conditions
+        path: conditions
       version: v1alpha1
   description: Memcached Operator description. TODO.
   displayName: Memcached Operator
